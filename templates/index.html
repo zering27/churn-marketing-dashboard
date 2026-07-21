@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户流失与营销分析仪表盘</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <h1><span class="dot"></span>客户流失与营销分析仪表盘</h1>
+  <div class="sub">基于电信客户数据 · 随机森林流失预测 · Kaplan-Meier 生存分析 · RFM 分群 · 营销 ROI 归因</div>
+</div>
+
+<div class="container">
+
+  <!-- KPI 概览 -->
+  <div class="section-title">核心指标</div>
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card"><div class="label">客户总数</div><div class="value accent" id="kpi-total">—</div><div class="delta" id="kpi-total-d"></div></div>
+    <div class="kpi-card"><div class="label">流失率</div><div class="value red" id="kpi-churn">—</div><div class="delta" id="kpi-churn-d"></div></div>
+    <div class="kpi-card"><div class="label">模型 AUC</div><div class="value green" id="kpi-auc">—</div><div class="delta">随机森林 · 300 棵树</div></div>
+    <div class="kpi-card"><div class="label">平均 LTV</div><div class="value accent" id="kpi-ltv">—</div><div class="delta" id="kpi-ltv-d"></div></div>
+    <div class="kpi-card"><div class="label">高风险客户</div><div class="value orange" id="kpi-risk">—</div><div class="delta" id="kpi-risk-d"></div></div>
+    <div class="kpi-card"><div class="label">月收入总额</div><div class="value green" id="kpi-rev">—</div><div class="delta" id="kpi-rev-d"></div></div>
+  </div>
+
+  <!-- 流失维度分析 -->
+  <div class="section-title">流失驱动因素分析</div>
+  <div class="chart-grid grid-2">
+    <div class="chart-card">
+      <div class="chart-head">
+        <span class="chart-title">各维度流失率对比</span>
+        <div class="controls">
+          <select id="dimSelect"></select>
+          <button class="btn active" data-chart="bar" id="dimBar">柱状</button>
+          <button class="btn" data-chart="pie" id="dimPie">饼图</button>
+        </div>
+      </div>
+      <div id="chartDim" class="chart-box" style="height:360px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head">
+        <span class="chart-title">模型特征重要性</span>
+        <div class="controls"><span style="font-size:12px;color:var(--text-dim)">随机森林 Gini 重要性</span></div>
+      </div>
+      <div id="chartFeature" class="chart-box" style="height:360px"></div>
+    </div>
+  </div>
+
+  <div class="chart-grid grid-2" style="margin-top:16px">
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">客户流失风险分布</span></div>
+      <div id="chartRisk" class="chart-box" style="height:300px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">模型评估指标</span></div>
+      <div id="chartMetrics" class="chart-box" style="height:300px"></div>
+    </div>
+  </div>
+
+  <!-- 生存分析 -->
+  <div class="section-title">生存分析（Kaplan-Meier）</div>
+  <div class="chart-grid grid-2-1">
+    <div class="chart-card">
+      <div class="chart-head">
+        <span class="chart-title">客户留存生存曲线</span>
+        <div class="controls">
+          <button class="btn active" data-surv="all" id="survAll">整体</button>
+          <button class="btn" data-surv="contract" id="survContract">按合同分组</button>
+        </div>
+      </div>
+      <div id="chartSurvival" class="chart-box" style="height:380px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">各 tenure 段流失风险</span></div>
+      <div id="chartHazard" class="chart-box" style="height:380px"></div>
+    </div>
+  </div>
+
+  <!-- 客户分群 -->
+  <div class="section-title">客户分群（RFM + KMeans）</div>
+  <div class="chart-grid grid-2-1">
+    <div class="chart-card">
+      <div class="chart-head">
+        <span class="chart-title">分群散点图：tenure × 月费</span>
+        <div class="controls"><span style="font-size:12px;color:var(--text-dim)">颜色代表分群</span></div>
+      </div>
+      <div id="chartScatter" class="chart-box" style="height:380px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">分群特征对比</span></div>
+      <div id="chartSegment" class="chart-box" style="height:380px"></div>
+    </div>
+  </div>
+
+  <!-- 营销分析 -->
+  <div class="section-title">营销活动效果分析</div>
+  <div class="chart-grid grid-2">
+    <div class="chart-card">
+      <div class="chart-head">
+        <span class="chart-title">各活动 ROI 对比</span>
+        <div class="controls">
+          <button class="btn active" data-metric="roi" id="mRoi">ROI</button>
+          <button class="btn" data-metric="conversionRate" id="mCv">转化率</button>
+          <button class="btn" data-metric="revenue" id="mRev">收入</button>
+        </div>
+      </div>
+      <div id="chartCampaign" class="chart-box" style="height:340px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">获客渠道质量对比</span></div>
+      <div id="chartChannel" class="chart-box" style="height:340px"></div>
+    </div>
+  </div>
+
+  <div class="chart-grid grid-2" style="margin-top:16px">
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">营销漏斗：触达 → 转化</span></div>
+      <div id="chartFunnel" class="chart-box" style="height:300px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">活动类型效果聚合</span></div>
+      <div id="chartCampType" class="chart-box" style="height:300px"></div>
+    </div>
+  </div>
+
+  <!-- LTV 分析 -->
+  <div class="section-title">客户生命周期价值（LTV）</div>
+  <div class="chart-grid grid-2">
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">LTV 分布</span></div>
+      <div id="chartLtvDist" class="chart-box" style="height:320px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-head"><span class="chart-title">各分群 LTV 对比</span></div>
+      <div id="chartLtvSeg" class="chart-box" style="height:320px"></div>
+    </div>
+  </div>
+
+  <!-- 挽留模拟器 -->
+  <div class="section-title">高风险客户挽留模拟器</div>
+  <div class="simulator">
+    <div class="sim-row">
+      <span style="font-size:13px;color:var(--text-dim)">单人挽留投入</span>
+      <input type="range" id="budgetSlider" min="20" max="200" value="50" step="10">
+      <span class="budget-val" id="budgetVal">¥50</span>
+    </div>
+    <div class="sim-result" id="simResult">
+      <div class="sim-item"><div class="v" id="sim-count">—</div><div class="l">高风险客户数</div></div>
+      <div class="sim-item"><div class="v green" id="sim-worth">—</div><div class="l">值得挽留</div></div>
+      <div class="sim-item"><div class="v accent" id="sim-gain">—</div><div class="l">净收益</div></div>
+      <div class="sim-item"><div class="v orange" id="sim-prob">—</div><div class="l">平均挽留成功率</div></div>
+    </div>
+  </div>
+
+  <!-- 高风险客户表 -->
+  <div class="section-title">高风险客户名单（Top 30）</div>
+  <div class="chart-card">
+    <div class="table-wrap">
+      <table id="riskTable">
+        <thead>
+          <tr>
+            <th>客户ID</th><th>性别</th><th>tenure</th><th>合同</th><th>月费</th>
+            <th>上网方式</th><th>付费方式</th><th>流失风险</th><th>风险等级</th>
+            <th>分群</th><th>LTV</th><th>获客渠道</th>
+          </tr>
+        </thead>
+        <tbody id="riskTbody"><tr><td colspan="12" class="loading">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
